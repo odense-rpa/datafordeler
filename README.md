@@ -49,24 +49,9 @@ except ValueError as e:
     print(f"Fejl: {e}")
 ```
 
-## Funktioner
-
-### `hent_personoplysninger(cpr: str) -> dict`
-
-Henter personoplysninger fra CPR-registret baseret på CPR-nummer.
-
-**Parametre:**
-- `cpr` (str): 10-cifret CPR-nummer
-
-**Returnerer:**
-- `dict`: Ordbog med personoplysninger
-
-**Exceptions:**
-- `ValueError`: Hvis ingen person findes med det angivne CPR-nummer
-
 ## Support
 
-Ved spørgsmål eller problemer:
+Der ydes ikke support på dette bibliotek, men ved datafordeler spørgsmål og problemer kan man henvende sig hos:
 
 - **Datafordeleren Support**: 
   - Telefon: 33 34 89 77 (dagligt 06:00 - 23:00)
