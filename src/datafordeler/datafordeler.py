@@ -1,4 +1,5 @@
 import httpx
+import re
 
 
 class Datafordeler:
@@ -21,6 +22,9 @@ class Datafordeler:
         Raises:
             ValueError: Hvis ingen person findes med det angivne CPR-nummer.
         """
+        if not re.match(r'^\d{10}$', cpr):
+            raise ValueError(f"Ugyldigt CPR-nummer format: {cpr}. CPR skal være 10 numeriske cifre.")
+
         response = self._client.get(f"https://s5-certservices.datafordeler.dk/CPR/CprPersonFullSimple/1/REST/PersonFullListSimple?pnr.personnummer.wi={cpr}")
 
         response.raise_for_status()
