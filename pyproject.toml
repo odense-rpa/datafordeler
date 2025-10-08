@@ -1,0 +1,16 @@
+[project]
+name = "datafordeleren"
+version = "0.1.0"
+description = "Python bibliotek til at få adgang til datafordeleren"
+readme = "README.md"
+authors = [
+    { name = "Michael Wulff Nielsen", email = "miwn@odense.dk" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "httpx>=0.28.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
