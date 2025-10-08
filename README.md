@@ -13,10 +13,14 @@ Datafordeleren er din indgang til offentlige grunddata fra Danmarks myndigheder.
 - **Landkort og geografi** - Geodata og kortmateriale
 - **Vand og klima** - Miljø- og klimadata
 
+## Nuværende funktionalitet
+
+- Der er kun implementeret simpel cpr adgang
+
 ## Installation
 
 ```bash
-pip install datafordeleren
+pip install datafordeler
 ```
 
 ## Forudsætninger

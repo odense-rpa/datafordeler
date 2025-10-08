@@ -1,5 +1,5 @@
 [project]
-name = "datafordeleren"
+name = "datafordeler"
 version = "0.1.0"
 description = "Python bibliotek til at få adgang til datafordeleren"
 readme = "README.md"

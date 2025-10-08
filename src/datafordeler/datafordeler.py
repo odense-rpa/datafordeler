@@ -1,7 +1,7 @@
 import httpx
 
 
-class Datafordeleren:
+class Datafordeler:
     def __init__(self, certifikat_sti: str, certifikat_nøglefil: str):
         self.certifikat_sti = certifikat_sti
         self.certifikat_adgangskode = certifikat_nøglefil
