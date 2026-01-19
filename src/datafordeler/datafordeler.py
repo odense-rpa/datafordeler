@@ -19,7 +19,7 @@ class Datafordeler:
             return ""
         return str(value).strip()
 
-    def _clean_husnummer(self, value: Any) -> str:
+    def _clean_leading_zeros(self, value: Any) -> str:
         """Strip leading zeros from house number."""
         return re.sub(r"^0+", "", self._clean(value))
 
@@ -84,7 +84,7 @@ class Datafordeler:
 
         return aktive_adresser[0]
 
-    def formatter_adresse(self, address: dict) -> str:
+    def formater_adresse(self, address: dict) -> str:
         """
         Formater en adresse ordbog til en læsbar adresse streng.
         Args:
@@ -96,9 +96,9 @@ class Datafordeler:
         cpr = (address or {}).get("CprAdresse") or {}
 
         vej = self._clean(cpr.get("vejadresseringsnavn"))
-        husnr = self._clean_husnummer(cpr.get("husnummer"))
-        etage = self._clean(cpr.get("etage"))
-        sidedoer = self._clean(cpr.get("sidedoer"))
+        husnr = self._clean_leading_zeros(cpr.get("husnummer"))
+        etage = self._clean_leading_zeros(cpr.get("etage"))
+        sidedoer = self._clean_leading_zeros(cpr.get("sidedoer"))
         postnr = self._clean(cpr.get("postnummer"))
         by = self._clean(cpr.get("postdistrikt"))
 
