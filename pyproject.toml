@@ -1,6 +1,6 @@
 [project]
 name = "datafordeler"
-version = "0.1.0"
+version = "0.1.1"
 description = "Python bibliotek til at få adgang til datafordeleren"
 readme = "README.md"
 authors = [

@@ -156,6 +156,12 @@ class Datafordeler:
         
         adresse_liste.append(aktiv_adresse["borgernavn"])
         adresse = aktiv_adresse["Adresseoplysninger"]["CprAdresse"]
+        if adresse["postdistrikt"].lower() == "ukendt":
+            adresse_liste.append(adresse["vejadresseringsnavn"])
+            adresse_liste.append(f"{adresse["postnummer"]} {adresse["postdistrikt"]}")
+            
+            return adresse_liste, adresse["postnummer"]
+        
         gade = f"{adresse["vejadresseringsnavn"]} {self._clean_leading_zeros(adresse["husnummer"])}"
         postnr = f"{adresse["postnummer"]} {adresse["postdistrikt"]}"
         
