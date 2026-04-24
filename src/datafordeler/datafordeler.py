@@ -78,11 +78,29 @@ class Datafordeler:
             for adresse in adresse_oplysninger
             if adresse.get("Adresseoplysninger", {}).get("status") == "aktuel"
         ]
+        
+        
 
         if not aktive_adresser:
             raise ValueError(f"Ingen aktiv adresse fundet for CPR-nummer {cpr}")
 
-        return aktive_adresser[0]
+        adresse = aktive_adresser[0]
+
+        navne = person.get("Navne", [])
+        aktiv_navn = next(
+            (n["Navn"] for n in navne if n.get("Navn", {}).get("status") == "aktuel"), None
+        )
+        if aktiv_navn:
+            navn_dele = [
+                aktiv_navn.get("fornavne", ""),
+                aktiv_navn.get("mellemnavn", ""),
+                aktiv_navn.get("efternavn", ""),
+            ]
+            adresse["borgernavn"] = " ".join(d for d in navn_dele if d)
+        else:
+            adresse["borgernavn"] = ""
+
+        return adresse
 
     def formater_adresse(self, address: dict) -> str:
         """
@@ -118,3 +136,36 @@ class Datafordeler:
         parts = [p for p in (street, detail, city) if p]
 
         return ", ".join(parts)
+    
+    def hent_adresse_til_sbsip(self, cpr:str) -> tuple[list[str], str]:
+        """
+        Hent adresseoplysninger formateret til brug med sbsip funktionen send_digital_post på CPR-nummer.
+
+        Args:
+            cpr (str): CPR-nummeret for den person, hvis adresseoplysninger skal hentes.
+        Returns:
+            tuple[list[str], str]: En tuple bestående af en liste med adressen som kan anvendes til adresse input i sbsip funktionen
+                (borgernavn, vejnavn + nummer(inkl. etage og dør) og postnummer + by) samt postnummeret som separat streng der også skal bruges som input.
+        Raises:
+            ValueError: Hvis ingen aktiv adresse findes for det angivne CPR-nummer.
+        """
+        
+        aktiv_adresse= self.hent_aktiv_adresse(cpr)
+        
+        adresse_liste: list[str] = []
+        
+        adresse_liste.append(aktiv_adresse["borgernavn"])
+        adresse = aktiv_adresse["Adresseoplysninger"]["CprAdresse"]
+        gade = f"{adresse["vejadresseringsnavn"]} {self._clean_leading_zeros(adresse["husnummer"])}"
+        postnr = f"{adresse["postnummer"]} {adresse["postdistrikt"]}"
+        
+        if "etage" in adresse:
+            gade = f"{gade}, {self._clean_leading_zeros(adresse["etage"])}."
+        
+        if "sidedoer" in adresse:
+            gade = f"{gade} {adresse["sidedoer"]}"
+        
+        adresse_liste.append(gade)
+        adresse_liste.append(postnr)
+        
+        return adresse_liste, adresse["postnummer"]
