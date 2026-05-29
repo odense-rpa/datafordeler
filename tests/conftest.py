@@ -1,21 +1,18 @@
-import pytest
 import os
+import pytest
+from dotenv import load_dotenv
+from pathlib import Path
 
-from datafordeler.datafordeler import Datafordeler
+import datafordeler
+
+load_dotenv()
+
+PROJECT_ROOT = Path(__file__).parent.parent
 
 
-@pytest.fixture(scope="session")
-def datafordeler_client() -> Datafordeler:
-    certifikat_sti = os.getenv("CERTIFIKATER", "./certifikater")
-    datafordeler = Datafordeler(
-        certifikat_sti=os.path.join(certifikat_sti, "datafordeler.crt"),
-        certifikat_nøglefil=os.path.join(certifikat_sti, "datafordeler.key"),
-    )
-    
-    return datafordeler
+@pytest.fixture
+def datafordeler_client() -> datafordeler.Datafordeler:
+    certifikat_sti = str(PROJECT_ROOT / "datafordeler.crt")
+    certifikat_nøglefil = str(PROJECT_ROOT / "datafordeler.key")
+    return datafordeler.Datafordeler(certifikat_sti, certifikat_nøglefil)
 
-@pytest.fixture(scope="session")
-def test_cpr() -> str:
-    cpr = os.getenv("TEST_CPR") or ""
-    assert cpr, "TEST_CPR environment variable not set"
-    return cpr
