@@ -8,6 +8,8 @@ wheels/
 
 # Virtual environments
 .venv
+.env
 
 datafordeler.crt
 datafordeler.key
+/certifikater/*
