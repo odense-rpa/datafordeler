@@ -51,6 +51,35 @@ class Datafordeler:
             raise ValueError(f"Ingen person fundet med CPR-nummer {cpr}")
 
         return data["Personer"][0]
+    
+    def hent_CVR_oplysninger(self, cvr: str) -> dict:
+        """
+        Hent CVR-oplysninger fra Datafordeleren baseret på CVR-nummer.
+
+        Args:
+            cvr (str): CVR-nummeret for den virksomhed, hvis oplysninger skal hentes.
+        Returns:
+            dict: En ordbog med CVR-oplysninger.
+        Raises:
+            ValueError: Hvis ingen virksomhed findes med det angivne CVR-nummer.
+        """
+        if not re.match(r"^\d{8}$", cvr):
+            raise ValueError(
+                f"Ugyldigt CVR-nummer format: {cvr}. CVR skal være 8 numeriske cifre."
+            )
+
+        response = self._client.get(
+            f"https://s5-certservices.datafordeler.dk/CVR/HentCVRData/1/rest/hentVirksomhedMedCVRNummer?pCVRNummer={cvr}"
+        )
+
+        response.raise_for_status()
+
+        data = response.json()
+
+        if len(data) == 0:
+            raise ValueError(f"Ingen virksomhed fundet med CVR-nummer {cvr}")
+
+        return data
 
     def hent_aktiv_adresse(self, cpr: str) -> dict:
         """

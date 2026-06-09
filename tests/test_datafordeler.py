@@ -26,3 +26,8 @@ def test_hent_sbsip_adresse(datafordeler_client: datafordeler.Datafordeler):
     assert result is not None
     assert len(result) == 3
     assert len(postnr) == 4
+
+def test_hent_CVR_oplysninger(datafordeler_client: datafordeler.Datafordeler):
+    cvr = "35209115"
+    result = datafordeler_client.hent_CVR_oplysninger(cvr)
+    assert isinstance(result, dict)
