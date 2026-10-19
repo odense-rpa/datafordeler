@@ -14,3 +14,5 @@ wheels/
 datafordeler.crt
 datafordeler.key
 /certifikater/*
+# Hentede GraphQL-skemaer (scripts/hent_skema.py)
+skema/

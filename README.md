@@ -108,10 +108,34 @@ data = klient.forespørg(
 Datafordelerens GraphQL har nogle regler, som ikke er tydelige i dokumentationen:
 
 - Kun ét rodfelt pr. forespørgsel og ingen aliaser
-- Introspection er slået fra. Skemaet hentes med `GET <endpoint>/schema` (se `scripts/hent_skema.py` og `docs/skema/`)
+- Introspection er slået fra. Skemaet hentes med `GET <endpoint>/schema` (se [Dokumentation og skemaer](#dokumentation-og-skemaer))
 - `beskyttelser` skal altid vælges på personer, også på ægtefælle, børn og forældremyndige
 - En liste filtreret med `where` (fx `navne(where: {status: {eq: "aktuel"}})`) skal også vælge `status`, ellers matcher filteret intet
 - CPR returnerer også historiske oplysninger, så filtrér på `status: "aktuel"`
+
+## Dokumentation og skemaer
+
+Biblioteket bruger disse tjenester:
+
+| Register | Endpoint | Skema |
+|---|---|---|
+| CPR | `https://graphql.datafordeler.dk/CPR/custom/PublicSector/v2` | `https://graphql.datafordeler.dk/CPR/custom/PublicSector/v2/schema` |
+| CVR | `https://graphql.datafordeler.dk/CVR/v2` | `https://graphql.datafordeler.dk/CVR/v2/schema` |
+
+Skemaerne kræver et token (uden får man `401`), så de hentes nemmest med scriptet:
+
+```bash
+uv run python scripts/hent_skema.py                     # CPR og CVR
+uv run python scripts/hent_skema.py CPR/custom/PublicSector/v3
+```
+
+Dokumentation:
+
+- [GraphQL til offentlige myndigheder](https://cprservicedesk.atlassian.net/wiki/spaces/CPR/pages/3623026695/GraphQL+til+offentlige+myndigheder) - CPR-kontorets vejledning, adgang og query params
+- [Eksempler på queries - GraphQL v3](https://cprservicedesk.atlassian.net/wiki/spaces/CPR/pages/3935338522) - alle felter på `CPRCustom_PublicSectorPerson`
+- [CPR_Events og eksempel på query](https://cprservicedesk.atlassian.net/wiki/spaces/CPR/pages/3679354900) - hændelser til ændringsdrevne processer
+- [Hændelsesoversigt](https://cprservicedesk.atlassian.net/wiki/spaces/CPR/pages/3681648641) - CPR-hændelseskoder og forretningshændelser
+- [Datafordelerens GraphQL-dokumentation](https://confluence.sdfi.dk/display/DML/GraphQL) - paginering og generelle regler
 
 ## Migrering fra 0.1.x
 
@@ -158,7 +182,7 @@ Maskeringen er mønsterbaseret og fanger ikke navne uden nøgle, fx første linj
 
 Andre scripts:
 
-- `scripts/hent_skema.py` - henter GraphQL-skemaer til `docs/skema/`
+- `scripts/hent_skema.py` - henter de aktuelle GraphQL-skemaer til `skema/` (ignoreres af git)
 - `scripts/test_token.py` - tjekker at OAuth2-klienten virker uden at vise tokenet
 
 ## Support
