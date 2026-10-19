@@ -113,3 +113,139 @@ def test_virksomhed():
     assert virksomhed.er_aktiv
     assert virksomhed.find_produktionsenhed(1003388394).navn == "Rådhuset"
     assert virksomhed.find_produktionsenhed("1") is None
+
+
+def graphql_adresse(**ændringer) -> dict:
+    cpr_adresse = dict(
+        cprkommunekode="0461",
+        cprvejkode="0123",
+        vejadresseringsnavn="Flakhaven",
+        husnummer="002",
+        etage=None,
+        sidedoer=None,
+        postnummer="5000",
+        postdistrikt="Odense C",
+    )
+    cpr_adresse.update(ændringer)
+    return {"status": "aktuel", "virkningfra": "2021-09-11", "cprAdresse": cpr_adresse}
+
+
+def graphql_person(**ændringer) -> dict:
+    node = {
+        "status": "bopael_i_danmark",
+        "foedselsdato": "1990-01-01",
+        "beskyttelser": [
+            {
+                "beskyttelsestype": "markedsfoering",
+                "status": "aktuel",
+                "virkningfra": "2025-02-10T11:00:00.000000Z",
+                "virkningtil": None,
+            },
+            {
+                "beskyttelsestype": "navne_og_adresse",
+                "status": "historisk",
+                "virkningfra": "2025-02-10T11:00:00.000000Z",
+                "virkningtil": "2026-02-10T11:00:00.000000Z",
+            },
+        ],
+        "navne": [
+            {
+                "status": "aktuel",
+                "fornavne": "Anne",
+                "mellemnavn": None,
+                "efternavn": "Hansen",
+            }
+        ],
+        "adresseoplysninger": [graphql_adresse()],
+        "civilstande": [
+            {
+                "status": "aktuel",
+                "civilstandstype": "gift",
+                "aegtefaelle": {"personnummer": "0202851234", "beskyttelser": []},
+            }
+        ],
+        "boern": [
+            {
+                "barn": {
+                    "personnummer": "0303154321",
+                    "beskyttelser": [],
+                    "adresseoplysninger": graphql_adresse(),
+                }
+            },
+            {
+                "barn": {
+                    "personnummer": "0404005678",
+                    "beskyttelser": [],
+                    "adresseoplysninger": graphql_adresse(husnummer="10"),
+                }
+            },
+        ],
+        "foraeldremyndighedsoplysninger": [
+            {"virkningtil": None, "foraeldremyndig": {"personnummer": "0505601111"}},
+            {
+                "virkningtil": "2010-01-01",
+                "foraeldremyndig": {"personnummer": "0606602222"},
+            },
+            {"virkningtil": None, "foraeldremyndig": None},
+        ],
+    }
+    node.update(ændringer)
+    return node
+
+
+def test_person_fra_graphql():
+    person = Person.fra_graphql("0101901234", graphql_person())
+
+    assert person.status == "bopael_i_danmark"
+    assert person.foedselsdato == date(1990, 1, 1)
+    assert person.navn == Navn(fornavne="Anne", efternavn="Hansen")
+    assert person.adresse == lav_adresse(vejkode="123", gyldig_fra=date(2021, 9, 11))
+    assert person.adresse.bor_i_kommune()
+    assert person.aegtefaelle_cpr == "0202851234"
+    assert person.foraeldremyndighed == ("0505601111",)
+    assert person.beskyttelser == ("markedsfoering",)
+    assert not person.har_navne_og_adressebeskyttelse
+
+
+def test_person_fra_graphql_børn():
+    person = Person.fra_graphql("0101901234", graphql_person())
+
+    assert [b.foedselsdato for b in person.boern] == [
+        date(2015, 3, 3),
+        date(2000, 4, 4),
+    ]
+    assert [b.cpr for b in person.hjemmeboende_børn_under_18(date(2026, 10, 19))] == [
+        "0303154321"
+    ]
+
+
+def test_person_fra_graphql_uden_adresse_og_navn():
+    person = Person.fra_graphql(
+        "0101901234",
+        graphql_person(status="doed", navne=[], adresseoplysninger=[], civilstande=[]),
+    )
+
+    assert person.er_død
+    assert person.navn is None
+    assert person.adresse is None
+    assert person.aegtefaelle_cpr is None
+    assert person.hjemmeboende_børn_under_18() == []
+
+
+def test_navne_og_adressebeskyttelse():
+    beskyttelse = {
+        "beskyttelsestype": "navne_og_adresse",
+        "status": "aktuel",
+        "virkningfra": "2025-02-10T11:00:00.000000Z",
+        "virkningtil": None,
+    }
+    person = Person.fra_graphql(
+        "0101901234", graphql_person(beskyttelser=[beskyttelse])
+    )
+    assert person.har_navne_og_adressebeskyttelse
+
+
+def test_adresse_fra_graphql_etage_og_dør():
+    adresse = Adresse.fra_graphql(graphql_adresse(etage="02", sidedoer="tv"))
+    assert adresse.etage == "2"
+    assert adresse.sbsip_linjer("X")[1] == "Flakhaven 2, 2. tv"

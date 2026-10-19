@@ -1,13 +1,14 @@
 """Typede modeller for data fra Datafordeleren.
 
 Modellerne dækker de felter, som odense-rpa processerne faktisk bruger. De
-udfyldes fra GraphQL-svar, når skemaet er på plads.
+udfyldes fra GraphQL-svar via fra_graphql().
 """
 
 from dataclasses import dataclass, field
 from datetime import date
 
 ODENSE_KOMMUNEKODE = "461"
+NAVNE_OG_ADRESSEBESKYTTELSE = "navne_og_adresse"
 
 
 def _uden_foranstillede_nuller(værdi: str | None) -> str | None:
@@ -18,11 +19,45 @@ def _uden_foranstillede_nuller(værdi: str | None) -> str | None:
     return renset or None
 
 
+def _dato(værdi: str | None) -> date | None:
+    return date.fromisoformat(værdi[:10]) if værdi else None
+
+
+def _fødselsdato_fra_cpr(cpr: str) -> date:
+    """Fødselsdato ud fra CPR-nummeret efter CPR-kontorets århundrederegel."""
+    dag, måned, år, løbenr = int(cpr[0:2]), int(cpr[2:4]), int(cpr[4:6]), int(cpr[6])
+    if løbenr <= 3:
+        århundrede = 1900
+    elif løbenr in (4, 9):
+        århundrede = 2000 if år <= 36 else 1900
+    else:
+        århundrede = 2000 if år <= 57 else 1800
+    return date(århundrede + år, måned, dag)
+
+
+def _aktive_beskyttelser(beskyttelser: list[dict]) -> tuple[str, ...]:
+    i_dag = date.today()
+    return tuple(
+        b["beskyttelsestype"]
+        for b in beskyttelser
+        if (b.get("status") or "").lower() == "aktuel"
+        and (_dato(b.get("virkningtil")) or date.max) > i_dag
+    )
+
+
 @dataclass(frozen=True)
 class Navn:
     fornavne: str
     efternavn: str
     mellemnavn: str | None = None
+
+    @classmethod
+    def fra_graphql(cls, node: dict) -> "Navn":
+        return cls(
+            fornavne=node["fornavne"],
+            efternavn=node["efternavn"],
+            mellemnavn=node.get("mellemnavn") or None,
+        )
 
     @property
     def fuldt_navn(self) -> str:
@@ -48,6 +83,22 @@ class Adresse:
     etage: str | None = None
     sidedoer: str | None = None
     gyldig_fra: date | None = None
+
+    @classmethod
+    def fra_graphql(cls, adresseoplysning: dict) -> "Adresse":
+        """Byg en Adresse fra en CPRCustom_PublicSectorAdresseoplysninger-node."""
+        a = adresseoplysning["cprAdresse"]
+        return cls(
+            vejadresseringsnavn=(a.get("vejadresseringsnavn") or "").strip(),
+            husnummer=_uden_foranstillede_nuller(a.get("husnummer")),
+            postnummer=(a.get("postnummer") or "").strip(),
+            postdistrikt=(a.get("postdistrikt") or "").strip(),
+            kommunekode=_uden_foranstillede_nuller(a.get("cprkommunekode")),
+            vejkode=_uden_foranstillede_nuller(a.get("cprvejkode")),
+            etage=_uden_foranstillede_nuller(a.get("etage")),
+            sidedoer=(a.get("sidedoer") or "").strip() or None,
+            gyldig_fra=_dato(adresseoplysning.get("virkningfra")),
+        )
 
     @property
     def er_ukendt(self) -> bool:
@@ -108,6 +159,20 @@ class Barn:
     foedselsdato: date
     adresse: Adresse | None = None
 
+    @classmethod
+    def fra_graphql(cls, node: dict) -> "Barn":
+        """Byg et Barn fra en CPRCustom_PublicSectorSimpelPerson-node.
+
+        Noden har ingen fødselsdato, så den udledes af CPR-nummeret.
+        """
+        adresse = node.get("adresseoplysninger")
+        aktuel = adresse and (adresse.get("status") or "aktuel").lower() == "aktuel"
+        return cls(
+            cpr=node["personnummer"],
+            foedselsdato=_fødselsdato_fra_cpr(node["personnummer"]),
+            adresse=Adresse.fra_graphql(adresse) if aktuel else None,
+        )
+
     def alder(self, på_dato: date | None = None) -> int:
         dato = på_dato or date.today()
         før_fødselsdag = (dato.month, dato.day) < (
@@ -123,11 +188,58 @@ class Person:
 
     cpr: str
     status: str
+    foedselsdato: date | None = None
     navn: Navn | None = None
     adresse: Adresse | None = None
     aegtefaelle_cpr: str | None = None
     boern: tuple[Barn, ...] = field(default_factory=tuple)
     foraeldremyndighed: tuple[str, ...] = field(default_factory=tuple)
+    beskyttelser: tuple[str, ...] = field(default_factory=tuple)
+
+    @classmethod
+    def fra_graphql(cls, cpr: str, node: dict) -> "Person":
+        """Byg en Person fra en CPRCustom_PublicSectorPerson-node.
+
+        Forventer at navne, adresseoplysninger og civilstande allerede er
+        filtreret til status "aktuel" i forespørgslen.
+        """
+        navne = node.get("navne") or []
+        adresser = node.get("adresseoplysninger") or []
+        aegtefaelle = next(
+            (
+                c["aegtefaelle"]["personnummer"]
+                for c in node.get("civilstande") or []
+                if c.get("civilstandstype", "").lower() == "gift"
+                and c.get("aegtefaelle")
+            ),
+            None,
+        )
+        i_dag = date.today()
+        return cls(
+            cpr=cpr,
+            status=node["status"],
+            foedselsdato=_dato(node.get("foedselsdato")),
+            navn=Navn.fra_graphql(navne[0]) if navne else None,
+            adresse=Adresse.fra_graphql(adresser[0]) if adresser else None,
+            aegtefaelle_cpr=aegtefaelle,
+            boern=tuple(
+                Barn.fra_graphql(b["barn"])
+                for b in node.get("boern") or []
+                if b.get("barn")
+            ),
+            foraeldremyndighed=tuple(
+                f["foraeldremyndig"]["personnummer"]
+                for f in node.get("foraeldremyndighedsoplysninger") or []
+                if f.get("foraeldremyndig")
+                and (_dato(f.get("virkningtil")) or date.max) > i_dag
+            ),
+            beskyttelser=_aktive_beskyttelser(node.get("beskyttelser") or []),
+        )
+
+    @property
+    def har_navne_og_adressebeskyttelse(self) -> bool:
+        """Aktiv navne- og adressebeskyttelse (ikke kun vejviser/markedsføring)."""
+        return NAVNE_OG_ADRESSEBESKYTTELSE in self.beskyttelser
 
     @property
     def er_død(self) -> bool:

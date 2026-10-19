@@ -38,3 +38,42 @@ def test_hent_virksomhed_findes_ikke(klient: DatafordelerGraphQL):
 def test_hent_virksomhed_ugyldigt_cvr(klient: DatafordelerGraphQL):
     with pytest.raises(ValueError, match="Ugyldigt CVR-nummer format"):
         klient.hent_virksomhed("123")
+
+
+@pytest.mark.skipif("TEST_CPR" not in os.environ, reason="Kræver TEST_CPR")
+def test_hent_person(klient: DatafordelerGraphQL):
+    person = klient.hent_person(os.environ["TEST_CPR"])
+
+    assert person.cpr == os.environ["TEST_CPR"]
+    assert person.status
+    assert person.foedselsdato is not None
+    assert person.navn is not None and person.navn.fornavne and person.navn.efternavn
+    if person.adresse is not None:
+        linjer, postnr = person.sbsip_adresse()
+        assert len(linjer) == 3
+        assert len(postnr) == 4
+
+
+def test_hent_person_ugyldigt_cpr(klient: DatafordelerGraphQL):
+    with pytest.raises(ValueError, match="Ugyldigt CPR-nummer format"):
+        klient.hent_person("123")
+
+
+def test_hent_person_findes_ikke(klient: DatafordelerGraphQL):
+    with pytest.raises(ValueError, match="Ingen person fundet"):
+        klient.hent_person("0000000000")
+
+
+@pytest.mark.skipif("TEST_CPR" not in os.environ, reason="Kræver TEST_CPR")
+def test_foraeldremyndighed(klient: DatafordelerGraphQL):
+    """TEST_CPR skal have et hjemmeboende barn under 18 (samtykke fra forælderen)."""
+    forælder = klient.hent_person(os.environ["TEST_CPR"])
+    børn = forælder.hjemmeboende_børn_under_18()
+    if not børn:
+        pytest.skip("TEST_CPR har ingen hjemmeboende børn under 18")
+
+    barn = klient.hent_person(børn[0].cpr)
+
+    assert forælder.cpr in barn.foraeldremyndighed
+    assert barn.foedselsdato == børn[0].foedselsdato
+    assert barn.adresse is not None and barn.adresse.samme_adresse(forælder.adresse)

@@ -13,15 +13,44 @@ from typing import Any
 
 import httpx
 
-from .modeller import Produktionsenhed, Virksomhed
+from .modeller import Person, Produktionsenhed, Virksomhed
 
 TOKEN_URL = (
     "https://auth.datafordeler.dk/realms/distribution/protocol/openid-connect/token"
 )
 GRAPHQL_URL = "https://graphql.datafordeler.dk"
 
+CPR_REGISTER = "CPR/custom/PublicSector/v2"
+CVR_REGISTER = "CVR/v2"
+
 # Filtrering med "in" tillader højst 100 værdier
 _MAKS_IN_LISTE = 100
+
+# Beskyttelser skal altid vælges på personer og relaterede personer.
+# Lister filtreret med where skal også vælge status, ellers matcher filteret intet.
+_BESKYTTELSER = "beskyttelser { beskyttelsestype status virkningfra virkningtil }"
+_ADRESSE = """status virkningfra
+  cprAdresse { cprkommunekode cprvejkode vejadresseringsnavn husnummer etage
+               sidedoer postnummer postdistrikt }"""
+_PERSON_QUERY = f"""query($pnr: String!) {{
+  CPRCustom_PublicSectorPerson(input: {{personnummer: {{personnummer: {{eq: $pnr}}}}}}) {{
+    nodes {{
+      status foedselsdato
+      {_BESKYTTELSER}
+      navne(where: {{status: {{eq: "aktuel"}}}}) {{ status fornavne mellemnavn efternavn }}
+      adresseoplysninger(where: {{status: {{eq: "aktuel"}}}}) {{ {_ADRESSE} }}
+      civilstande(where: {{status: {{eq: "aktuel"}}}}) {{
+        status civilstandstype aegtefaelle {{ personnummer {_BESKYTTELSER} }}
+      }}
+      boern {{
+        barn {{ personnummer {_BESKYTTELSER} adresseoplysninger {{ {_ADRESSE} }} }}
+      }}
+      foraeldremyndighedsoplysninger {{
+        virkningtil foraeldremyndig {{ personnummer {_BESKYTTELSER} }}
+      }}
+    }}
+  }}
+}}"""
 
 
 class DatafordelerFejl(Exception):
@@ -126,7 +155,7 @@ class DatafordelerGraphQL:
         navne: dict[str, str] = {}
         for ider in batched(enheds_ider, _MAKS_IN_LISTE):
             noder = self._alle_noder(
-                "CVR/v2",
+                CVR_REGISTER,
                 """query($ider: [String!], $t: DafDateTime, $after: String) {
                   CVR_Navn(virkningstid: $t, after: $after,
                            where: {CVREnhedsId: {in: $ider}}) {
@@ -153,7 +182,7 @@ class DatafordelerGraphQL:
         tid = _virkningstid()
 
         virksomheder = self._alle_noder(
-            "CVR/v2",
+            CVR_REGISTER,
             """query($cvr: Long!, $t: DafDateTime, $after: String) {
               CVR_Virksomhed(virkningstid: $t, after: $after,
                              where: {CVRNummer: {eq: $cvr}}) {
@@ -168,7 +197,7 @@ class DatafordelerGraphQL:
         virksomhed = virksomheder[0]
 
         enheder = self._alle_noder(
-            "CVR/v2",
+            CVR_REGISTER,
             """query($cvr: Long!, $t: DafDateTime, $after: String) {
               CVR_Produktionsenhed(virkningstid: $t, after: $after,
                                    where: {tilknyttetVirksomhedsCVRNummer: {eq: $cvr}}) {
@@ -195,3 +224,19 @@ class DatafordelerGraphQL:
                 for e in enheder
             ),
         )
+
+    def hent_person(self, cpr: str) -> Person:
+        """Hent en person fra CPR med aktuelt navn, adresse og familierelationer.
+
+        Raises:
+            ValueError: Hvis CPR-nummeret er ugyldigt eller ikke findes.
+        """
+        if not re.match(r"^\d{10}$", cpr):
+            raise ValueError(
+                "Ugyldigt CPR-nummer format. CPR skal være 10 numeriske cifre."
+            )
+        data = self.forespørg(CPR_REGISTER, _PERSON_QUERY, {"pnr": cpr})
+        noder = data["CPRCustom_PublicSectorPerson"]["nodes"]
+        if not noder:
+            raise ValueError("Ingen person fundet med det angivne CPR-nummer")
+        return Person.fra_graphql(cpr, noder[0])
