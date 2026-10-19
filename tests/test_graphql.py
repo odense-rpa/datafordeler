@@ -5,6 +5,8 @@ import pytest
 from datafordeler import DatafordelerGraphQL
 
 ODENSE_KOMMUNE_CVR = "35209115"
+# Ophørt 2020-09-30
+OPHØRT_CVR = "15224738"
 
 pytestmark = pytest.mark.skipif(
     "DATAFORDELER_CLIENT_ID" not in os.environ,
@@ -79,3 +81,13 @@ def test_foraeldremyndighed(klient: DatafordelerGraphQL):
     assert forælder.cpr in barn.foraeldremyndighed
     assert barn.foedselsdato == børn[0].foedselsdato
     assert barn.adresse is not None and barn.adresse.samme_adresse(forælder.adresse)
+
+
+def test_hent_ophørt_virksomhed(klient: DatafordelerGraphQL):
+    """En ophørt virksomhed har ingen aktuel version, men skal stadig findes."""
+    virksomhed = klient.hent_virksomhed(OPHØRT_CVR)
+
+    assert virksomhed.cvr == OPHØRT_CVR
+    assert virksomhed.navn
+    assert not virksomhed.er_aktiv
+    assert virksomhed.produktionsenheder == ()

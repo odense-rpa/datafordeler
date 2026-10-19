@@ -161,8 +161,14 @@ class DatafordelerGraphQL:
                 return noder
             after = forbindelse["pageInfo"]["endCursor"]
 
-    def _hent_cvr_navne(self, enheds_ider: list[str], tid: str) -> dict[str, str]:
-        """Aktuelle navne for CVR-enheder, slået op på enhedens id."""
+    def _hent_cvr_navne(
+        self, enheds_ider: list[str], tid: str | None
+    ) -> dict[str, str]:
+        """Navne for CVR-enheder, slået op på enhedens id.
+
+        Med tid hentes navnet på det tidspunkt. Uden tid hentes det seneste navn,
+        fx for en ophørt virksomhed.
+        """
         navne: dict[str, str] = {}
         for ider in batched(enheds_ider, _MAKS_IN_LISTE):
             noder = self._alle_noder(
@@ -171,17 +177,24 @@ class DatafordelerGraphQL:
                   CVR_Navn(virkningstid: $t, after: $after,
                            where: {CVREnhedsId: {in: $ider}}) {
                     pageInfo { hasNextPage endCursor }
-                    nodes { CVREnhedsId vaerdi sekvens }
+                    nodes { CVREnhedsId vaerdi sekvens virkningFra registreringTil }
                   }
                 }""",
                 {"ider": list(ider), "t": tid},
             )
-            for node in sorted(noder, key=lambda n: n["sekvens"]):
+            gældende = [n for n in noder if n["registreringTil"] is None]
+            # Nyeste virkning først, og ved samme virkning laveste sekvens
+            gældende.sort(key=lambda n: n["sekvens"])
+            gældende.sort(key=lambda n: n["virkningFra"], reverse=True)
+            for node in gældende:
                 navne.setdefault(node["CVREnhedsId"], node["vaerdi"])
         return navne
 
     def hent_virksomhed(self, cvr: str) -> Virksomhed:
         """Hent en virksomhed med navn, status og produktionsenheder.
+
+        En ophørt virksomhed har ingen aktuel version. Så returneres den seneste
+        version med status "inaktiv", det seneste navn og ingen produktionsenheder.
 
         Raises:
             ValueError: Hvis CVR-nummeret er ugyldigt eller ikke findes.
@@ -192,20 +205,30 @@ class DatafordelerGraphQL:
             )
         tid = _virkningstid()
 
-        virksomheder = self._alle_noder(
-            CVR_REGISTER,
-            """query($cvr: Long!, $t: DafDateTime, $after: String) {
+        virksomhed_query = """query($cvr: Long!, $t: DafDateTime, $after: String) {
               CVR_Virksomhed(virkningstid: $t, after: $after,
                              where: {CVRNummer: {eq: $cvr}}) {
                 pageInfo { hasNextPage endCursor }
-                nodes { id status }
+                nodes { id status virkningFra registreringTil }
               }
-            }""",
-            {"cvr": int(cvr), "t": tid},
+            }"""
+        virksomheder = self._alle_noder(
+            CVR_REGISTER, virksomhed_query, {"cvr": int(cvr), "t": tid}
         )
+        navne_tid: str | None = tid
+        if not virksomheder:
+            # Ingen aktuel version: virksomheden er ophørt, så brug seneste version
+            virksomheder = [
+                v
+                for v in self._alle_noder(
+                    CVR_REGISTER, virksomhed_query, {"cvr": int(cvr), "t": None}
+                )
+                if v["registreringTil"] is None
+            ]
+            navne_tid = None
         if not virksomheder:
             raise ValueError(f"Ingen virksomhed fundet med CVR-nummer {cvr}")
-        virksomhed = virksomheder[0]
+        virksomhed = max(virksomheder, key=lambda v: v["virkningFra"])
 
         enheder = self._alle_noder(
             CVR_REGISTER,
@@ -220,7 +243,7 @@ class DatafordelerGraphQL:
         )
 
         navne = self._hent_cvr_navne(
-            [virksomhed["id"], *(e["id"] for e in enheder)], tid
+            [virksomhed["id"], *(e["id"] for e in enheder)], navne_tid
         )
         return Virksomhed(
             cvr=cvr,
