@@ -35,23 +35,15 @@ uv add git+https://github.com/odense-rpa/datafordeler.git
 2. **Adgang til tjenesterne** - Myndigheder kan kun få adgang til én CPR GraphQL-tjeneste. Vælg kun `CustomPublicSectorPerson` i ansøgningen, ellers afvises den. Se [CPR-kontorets dokumentation](https://cprservicedesk.atlassian.net/wiki/spaces/CPR/pages/3623026695/GraphQL+til+offentlige+myndigheder)
 3. **Python 3.13+**
 
-Klienten læser følgende miljøvariabler, fx fra en `.env`-fil (som aldrig må committes):
-
-```bash
-DATAFORDELER_CLIENT_ID=...
-DATAFORDELER_CLIENT_SECRET=...
-# Valgfrie - standardværdierne peger på produktion
-DATAFORDELER_TOKEN_URL=https://auth.datafordeler.dk/realms/distribution/protocol/openid-connect/token
-DATAFORDELER_GRAPHQL_URL=https://graphql.datafordeler.dk
-```
-
 ## Brug
 
 ```python
 from datafordeler import DatafordelerGraphQL
 
-klient = DatafordelerGraphQL.fra_miljøvariabler()
+klient = DatafordelerGraphQL(client_id, client_secret)
 ```
+
+Hvor client id og secret kommer fra, er op til processen, fx en credential i ATS eller en `.env`-fil (som aldrig må committes). URL'erne til Datafordeleren er faste i biblioteket.
 
 Klienten henter og fornyer selv OAuth2-tokenet. Ugyldige eller ukendte CPR- og CVR-numre giver `ValueError`, og fejl fra API'et giver `DatafordelerFejl`.
 

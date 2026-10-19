@@ -2,9 +2,7 @@ import httpx
 import pytest
 
 from datafordeler import DatafordelerGraphQL
-
-TOKEN_URL = "https://auth.test/token"
-GRAPHQL_URL = "https://graphql.test"
+from datafordeler.graphql import TOKEN_URL
 
 
 def lav_klient(graphql_svar: list[int]) -> tuple[DatafordelerGraphQL, list[str]]:
@@ -31,7 +29,7 @@ def lav_klient(graphql_svar: list[int]) -> tuple[DatafordelerGraphQL, list[str]]
             headers={"content-type": "application/graphql-response+json"},
         )
 
-    klient = DatafordelerGraphQL("id", "secret", TOKEN_URL, GRAPHQL_URL)
+    klient = DatafordelerGraphQL("id", "secret")
     klient._client = httpx.Client(transport=httpx.MockTransport(håndter))
     return klient, brugte_tokens
 

@@ -7,6 +7,7 @@ Brug:
     uv run python scripts/hent_skema.py CVR/v2 CPR/custom/PublicSector/v3
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -19,7 +20,9 @@ SKEMA_MAPPE = Path(__file__).parent.parent / "skema"
 
 load_dotenv()
 
-klient = DatafordelerGraphQL.fra_miljøvariabler()
+klient = DatafordelerGraphQL(
+    os.environ["DATAFORDELER_CLIENT_ID"], os.environ["DATAFORDELER_CLIENT_SECRET"]
+)
 SKEMA_MAPPE.mkdir(exist_ok=True)
 for register in sys.argv[1:] or [CPR_REGISTER, CVR_REGISTER]:
     skema = klient.hent_skema(register)

@@ -14,7 +14,9 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture(scope="module")
 def klient() -> DatafordelerGraphQL:
-    return DatafordelerGraphQL.fra_miljøvariabler()
+    return DatafordelerGraphQL(
+        os.environ["DATAFORDELER_CLIENT_ID"], os.environ["DATAFORDELER_CLIENT_SECRET"]
+    )
 
 
 def test_hent_virksomhed(klient: DatafordelerGraphQL):

@@ -4,7 +4,6 @@ Datafordeleren tillader kun ét rodfelt pr. forespørgsel og ingen aliaser, så
 hver entitetstype hentes med sin egen forespørgsel.
 """
 
-import os
 import re
 import time
 from datetime import datetime, timezone
@@ -63,31 +62,19 @@ def _virkningstid() -> str:
 
 
 class DatafordelerGraphQL:
-    def __init__(
-        self,
-        client_id: str,
-        client_secret: str,
-        token_url: str = TOKEN_URL,
-        graphql_url: str = GRAPHQL_URL,
-        timeout: float = 60,
-    ):
+    """Klient til Datafordelerens GraphQL-API.
+
+    Args:
+        client_id: Client id fra Datafordelerens administrationsportal.
+        client_secret: Client secret til samme IT-system.
+    """
+
+    def __init__(self, client_id: str, client_secret: str, timeout: float = 60):
         self._client_id = client_id
         self._client_secret = client_secret
-        self._token_url = token_url
-        self._graphql_url = graphql_url.rstrip("/")
         self._client = httpx.Client(timeout=timeout)
         self._token: str | None = None
         self._token_udløber = 0.0
-
-    @classmethod
-    def fra_miljøvariabler(cls) -> "DatafordelerGraphQL":
-        """Opret klienten ud fra DATAFORDELER_* miljøvariabler."""
-        return cls(
-            client_id=os.environ["DATAFORDELER_CLIENT_ID"],
-            client_secret=os.environ["DATAFORDELER_CLIENT_SECRET"],
-            token_url=os.environ.get("DATAFORDELER_TOKEN_URL", TOKEN_URL),
-            graphql_url=os.environ.get("DATAFORDELER_GRAPHQL_URL", GRAPHQL_URL),
-        )
 
     def _hent_token(self) -> str:
         # Forny et minut før udløb, så tokenet ikke udløber midt i et kald
@@ -95,7 +82,7 @@ class DatafordelerGraphQL:
             return self._token
 
         response = self._client.post(
-            self._token_url,
+            TOKEN_URL,
             data={
                 "grant_type": "client_credentials",
                 "client_id": self._client_id,
@@ -138,7 +125,7 @@ class DatafordelerGraphQL:
         """
         response = self._send(
             "POST",
-            f"{self._graphql_url}/{register}",
+            f"{GRAPHQL_URL}/{register}",
             json={"query": query, "variables": variabler or {}},
         )
         if response.headers.get("content-type", "").startswith("application/graphql"):
@@ -153,7 +140,7 @@ class DatafordelerGraphQL:
 
     def hent_skema(self, register: str) -> str:
         """Hent GraphQL-skemaet (SDL) for et register, fx "CVR/v2"."""
-        response = self._send("GET", f"{self._graphql_url}/{register}/schema")
+        response = self._send("GET", f"{GRAPHQL_URL}/{register}/schema")
         response.raise_for_status()
         return response.text
 

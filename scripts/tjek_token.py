@@ -7,10 +7,12 @@ import os
 import httpx
 from dotenv import load_dotenv
 
+from datafordeler.graphql import TOKEN_URL
+
 load_dotenv()
 
 svar = httpx.post(
-    os.environ["DATAFORDELER_TOKEN_URL"],
+    TOKEN_URL,
     data={
         "grant_type": "client_credentials",
         "client_id": os.environ["DATAFORDELER_CLIENT_ID"],
