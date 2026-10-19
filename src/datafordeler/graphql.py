@@ -133,6 +133,15 @@ class DatafordelerGraphQL:
         response.raise_for_status()
         return response.json()["data"]
 
+    def hent_skema(self, register: str) -> str:
+        """Hent GraphQL-skemaet (SDL) for et register, fx "CVR/v2"."""
+        response = self._client.get(
+            f"{self._graphql_url}/{register}/schema",
+            headers={"Authorization": f"Bearer {self._hent_token()}"},
+        )
+        response.raise_for_status()
+        return response.text
+
     def _alle_noder(
         self, register: str, query: str, variabler: dict[str, Any]
     ) -> list[dict]:
