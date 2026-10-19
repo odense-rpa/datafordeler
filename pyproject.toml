@@ -1,6 +1,6 @@
 [project]
 name = "datafordeler"
-version = "0.1.1"
+version = "1.0.0"
 description = "Python bibliotek til at få adgang til datafordeleren"
 readme = "README.md"
 authors = [
@@ -8,12 +8,20 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
-    "dotenv>=0.9.9",
     "httpx>=0.28.1",
-    "pytest>=9.0.3",
-    "ruff>=0.14.13",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "dotenv>=0.9.9",
+    "pytest>=9.1.1",
+    "ruff>=0.17.1",
+]
+
+[tool.ruff]
+# README-eksemplerne har justerede kommentarer
+extend-exclude = ["*.md"]
