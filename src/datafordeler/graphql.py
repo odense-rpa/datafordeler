@@ -6,7 +6,7 @@ hver entitetstype hentes med sin egen forespørgsel.
 
 import re
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from itertools import batched
 from typing import Any
 
@@ -58,7 +58,7 @@ class DatafordelerFejl(Exception):
 
 def _virkningstid() -> str:
     """Nuværende tidspunkt i Datafordelerens DafDateTime-format."""
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
 class DatafordelerGraphQL:

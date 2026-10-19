@@ -47,7 +47,7 @@ def main() -> int:
         return 0
 
     resultat = subprocess.run(
-        args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+        args, check=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
     )
     sys.stdout.write(masker(resultat.stdout))
     return resultat.returncode

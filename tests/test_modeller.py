@@ -6,25 +6,25 @@ from datafordeler import Adresse, Barn, Navn, Person, Produktionsenhed, Virksomh
 
 
 def lav_adresse(**ændringer) -> Adresse:
-    felter = dict(
-        vejadresseringsnavn="Flakhaven",
-        husnummer="2",
-        postnummer="5000",
-        postdistrikt="Odense C",
-        kommunekode="461",
-        vejkode="1234",
-    )
+    felter = {
+        "vejadresseringsnavn": "Flakhaven",
+        "husnummer": "2",
+        "postnummer": "5000",
+        "postdistrikt": "Odense C",
+        "kommunekode": "461",
+        "vejkode": "1234",
+    }
     felter.update(ændringer)
     return Adresse(**felter)
 
 
 def lav_person(**ændringer) -> Person:
-    felter = dict(
-        cpr="0101901234",
-        status="bopael_i_danmark",
-        navn=Navn(fornavne="Anne", mellemnavn="Marie", efternavn="Hansen"),
-        adresse=lav_adresse(),
-    )
+    felter = {
+        "cpr": "0101901234",
+        "status": "bopael_i_danmark",
+        "navn": Navn(fornavne="Anne", mellemnavn="Marie", efternavn="Hansen"),
+        "adresse": lav_adresse(),
+    }
     felter.update(ændringer)
     return Person(**felter)
 
@@ -116,16 +116,16 @@ def test_virksomhed():
 
 
 def graphql_adresse(**ændringer) -> dict:
-    cpr_adresse = dict(
-        cprkommunekode="0461",
-        cprvejkode="0123",
-        vejadresseringsnavn="Flakhaven",
-        husnummer="002",
-        etage=None,
-        sidedoer=None,
-        postnummer="5000",
-        postdistrikt="Odense C",
-    )
+    cpr_adresse = {
+        "cprkommunekode": "0461",
+        "cprvejkode": "0123",
+        "vejadresseringsnavn": "Flakhaven",
+        "husnummer": "002",
+        "etage": None,
+        "sidedoer": None,
+        "postnummer": "5000",
+        "postdistrikt": "Odense C",
+    }
     cpr_adresse.update(ændringer)
     return {"status": "aktuel", "virkningfra": "2021-09-11", "cprAdresse": cpr_adresse}
 
