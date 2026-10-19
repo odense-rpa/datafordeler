@@ -183,7 +183,7 @@ Maskeringen er mønsterbaseret og fanger ikke navne uden nøgle, fx første linj
 Andre scripts:
 
 - `scripts/hent_skema.py` - henter de aktuelle GraphQL-skemaer til `skema/` (ignoreres af git)
-- `scripts/test_token.py` - tjekker at OAuth2-klienten virker uden at vise tokenet
+- `scripts/tjek_token.py` - tjekker at OAuth2-klienten virker uden at vise tokenet
 
 ## Support
 

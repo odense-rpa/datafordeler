@@ -108,6 +108,24 @@ class DatafordelerGraphQL:
         self._token_udløber = time.monotonic() + data["expires_in"]
         return self._token
 
+    def _send(self, metode: str, url: str, **kwargs: Any) -> httpx.Response:
+        """Send et kald med token. Ved 401 hentes et nyt token, og kaldet prøves igen.
+
+        Tokenet kan være ugyldigt før beregnet udløb, fx efter rotation af secret
+        eller hvis maskinen har været i dvale.
+        """
+        for forsøg in range(2):
+            response = self._client.request(
+                metode,
+                url,
+                headers={"Authorization": f"Bearer {self._hent_token()}"},
+                **kwargs,
+            )
+            if response.status_code != 401 or forsøg == 1:
+                return response
+            self._token = None
+        return response
+
     def forespørg(
         self, register: str, query: str, variabler: dict[str, Any] | None = None
     ) -> dict:
@@ -118,10 +136,10 @@ class DatafordelerGraphQL:
         Raises:
             DatafordelerFejl: Hvis svaret indeholder GraphQL-fejl.
         """
-        response = self._client.post(
+        response = self._send(
+            "POST",
             f"{self._graphql_url}/{register}",
             json={"query": query, "variables": variabler or {}},
-            headers={"Authorization": f"Bearer {self._hent_token()}"},
         )
         if response.headers.get("content-type", "").startswith("application/graphql"):
             data = response.json()
@@ -135,10 +153,7 @@ class DatafordelerGraphQL:
 
     def hent_skema(self, register: str) -> str:
         """Hent GraphQL-skemaet (SDL) for et register, fx "CVR/v2"."""
-        response = self._client.get(
-            f"{self._graphql_url}/{register}/schema",
-            headers={"Authorization": f"Bearer {self._hent_token()}"},
-        )
+        response = self._send("GET", f"{self._graphql_url}/{register}/schema")
         response.raise_for_status()
         return response.text
 
